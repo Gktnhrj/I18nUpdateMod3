@@ -4,7 +4,7 @@
 [![Modrinth](https://img.shields.io/modrinth/dt/PWERr14M?label=&logo=Modrinth&labelColor=white&color=00AF5C&style=for-the-badge)](https://modrinth.com/mod/i18nupdatemod3-edit-ver.)
 [![License](https://img.shields.io/github/license/CFPAOrg/I18nUpdateMod3?label=&logo=c&style=for-the-badge&color=A8B9CC&labelColor=455A64)](https://github.com/gktnhtj/I18nUpdateMod3/blob/main/LICENSE)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/CFPAOrg/I18nUpdateMod3/beta.yml?style=for-the-badge&label=&logo=Gradle&labelColor=388E3C)](https://github.com/gktnhrj/I18nUpdateMod3/actions)
-[![Star](https://img.shields.io/github/stars/CFPAOrg/I18nUpdateMod3?label=&logo=GitHub&labelColor=black&color=FAFAFA&style=for-the-badge)](https://github.com/gkthhrj/I18nUpdateMod3/stargazers)
+[![Star](https://img.shields.io/github/stars/CFPAOrg/I18nUpdateMod3?label=&logo=GitHub&labelColor=black&color=FAFAFA&style=for-the-badge)](https://github.com/gktnhrj/I18nUpdateMod3/stargazers)
 [![Minecraft](https://cf.way2muchnoise.eu/versions/Minecraft_I18nUpdateMod_all.svg?badge_style=for_the_badge)](https://github.com/gktnhrkj/I18nUpdateMod3)
 
 更现代的自动汉化更新模组。
