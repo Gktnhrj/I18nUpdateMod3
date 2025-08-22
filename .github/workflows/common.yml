@@ -12,6 +12,9 @@ on:
       change-log:
         required: false
         type: string
+      tag:
+        required: false
+        type: string
 
 jobs:
   build-common:
@@ -44,3 +47,26 @@ jobs:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           ./gradlew modrinth modrinthSyncBody --info --stacktrace
+      -
+        name: Upload to Release
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Release ${{ inputs.tag }}
+          body: ${{ inputs.change-log }}
+          files: build/libs/I18nUpdateMod-*.jar
+          token: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Rename and Re-upload to Release
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        run: |
+          # 找到构建的JAR文件
+          JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar)
+          # 重命名文件
+          NEW_NAME="I18nUpdateMod3-${{ inputs.tag }}.jar"
+          cp "$JAR_FILE" "$NEW_NAME"
+          # 上传重命名后的文件到Release
+          gh release upload "${{ inputs.tag }}" "$NEW_NAME" --repo $GITHUB_REPOSITORY
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
