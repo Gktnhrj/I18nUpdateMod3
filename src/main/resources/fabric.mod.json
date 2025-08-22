@@ -11,15 +11,15 @@
   "name": "I18nUpdateMod",
   "description": "Brand new Minecraft Mod Language Package update mod.",
   "contact": {
-    "homepage": "https://github.com/xfl03/I18nUpdateMod3",
-    "issues": "https://github.com/xfl03/I18nUpdateMod3/issues",
-    "sources": "https://github.com/xfl03/I18nUpdateMod3"
+    "homepage": "https://github.com/gktnhrj/I18nUpdateMod3",
+    "issues": "https://github.com/gktnhrj/I18nUpdateMod3/issues",
+    "sources": "https://github.com/gktnhrj/I18nUpdateMod3"
   },
   "authors": [
     {
       "name": "xfl03",
       "contact": {
-        "homepage": "https://github.com/xfl03"
+        "homepage": "https://github.com/gktnhrj"
       }
     }
   ],
