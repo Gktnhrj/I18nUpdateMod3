@@ -12,6 +12,9 @@ on:
       change-log:
         required: false
         type: string
+      tag:
+        required: false
+        type: string
 
 jobs:
   build-common:
@@ -19,41 +22,63 @@ jobs:
     runs-on: ubuntu-latest
     environment: Build
     steps:
-      - name: Checkout
+      -
+        name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Set up JDK
+      -
+        name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
           java-version: '21'
           cache: 'gradle'
-          
-      - name: Build
+      -
+        name: Build
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
           ./gradlew clean shadowJar --info --stacktrace
-          
-      - name: Collect build artifacts
-        run: |
-          mkdir -p release-artifacts
-          # 复制所有构建的JAR文件到release-artifacts目录
-          find . -name "*.jar" -path "*/build/libs/*" ! -name "*-sources.jar" ! -name "*-javadoc.jar" -exec cp {} release-artifacts/ \;
-          echo "已收集的 JAR 文件:"
-          ls -la release-artifacts/
-          
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: release-artifacts/*.jar
-          retention-days: 1
-          
-      - name: Publish to Modrinth
-        if: ${{ !inputs.is-snapshot && inputs.change-log != '' }}
+      -
+        name: Publish Modrinth
+        if: ${{ !inputs.is-snapshot }}
         env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          ./gradlew modrinth --info --stacktrace
+          ./gradlew modrinth modrinthSyncBody --info --stacktrace
+      -
+        name: Prepare release assets
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        run: |
+          # 找到构建的JAR文件
+          JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar)
+          # 重命名文件
+          NEW_NAME="I18nUpdateMod3-${{ inputs.tag }}.jar"
+          cp "$JAR_FILE" "$NEW_NAME"
+          echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_ENV
+      -
+        name: Create Release
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.tag }}
+          release_name: Release ${{ inputs.tag }}
+          body: ${{ inputs.change-log }}
+          draft: false
+          prerelease: false
+      -
+        name: Upload Release Asset
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET_PATH }}
+          asset_name: ${{ env.ASSET_PATH }}
+          asset_content_type: application/java-archive
