@@ -38,8 +38,12 @@ jobs:
         name: Extract version from tag
         if: ${{ inputs.tag }}
         run: |
-          # 从tag中提取版本号（假设tag格式为v1.2.3）
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # 从tag中提取版本号（移除'v'前缀）
+          VERSION="${{ inputs.tag }}"
+          # 如果tag以'v'开头，移除它
+          if [[ "$VERSION" == v* ]]; then
+            VERSION="${VERSION:1}"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Extracted version: $VERSION"
       -
@@ -49,8 +53,10 @@ jobs:
         run: |
           # 如果有从tag提取的版本号，则使用它
           if [ -n "$VERSION" ]; then
+            echo "Building with version: $VERSION"
             ./gradlew clean shadowJar -Pversion=$VERSION --info --stacktrace
           else
+            echo "Building with default version"
             ./gradlew clean shadowJar --info --stacktrace
           fi
       -
@@ -63,14 +69,21 @@ jobs:
             !build/libs/*-sources.jar
             !build/libs/*-javadoc.jar
       -
+        name: Debug - Check variables
+        run: |
+          echo "IS_SNAPSHOT: ${{ inputs.is-snapshot }}"
+          echo "TAG: ${{ inputs.tag }}"
+          echo "VERSION: $VERSION"
+      -
         name: Publish Modrinth
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        if: ${{ !inputs.is-snapshot && inputs.tag && env.VERSION != '' }}
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION: ${{ env.VERSION }}
         run: |
-          # 使用从tag提取的版本号发布到Modrinth
+          echo "Publishing to Modrinth with version: $VERSION"
           ./gradlew modrinth modrinthSyncBody -Pversion=$VERSION --info --stacktrace
       -
         name: Prepare release assets
