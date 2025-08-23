@@ -25,8 +25,6 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       -
         name: Set up JDK
         uses: actions/setup-java@v4
@@ -35,58 +33,32 @@ jobs:
           java-version: '21'
           cache: 'gradle'
       -
-        name: Extract version from tag
-        if: ${{ inputs.tag }}
-        run: |
-          # 从tag中提取版本号（移除'v'前缀）
-          VERSION="${{ inputs.tag }}"
-          # 如果tag以'v'开头，移除它
-          if [[ "$VERSION" == v* ]]; then
-            VERSION="${VERSION:1}"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
-      -
-        name: Build with version
+        name: Build
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
-          # 如果有从tag提取的版本号，则使用它
-          if [ -n "$VERSION" ]; then
-            echo "Building with version: $VERSION"
-            ./gradlew clean shadowJar -Pversion=$VERSION --info --stacktrace
-          else
-            echo "Building with default version"
-            ./gradlew clean shadowJar --info --stacktrace
-          fi
-      -
-        name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            build/libs/*.jar
-            !build/libs/*-sources.jar
-            !build/libs/*-javadoc.jar
-      -
-        name: Debug - Check variables
-        run: |
-          echo "IS_SNAPSHOT: ${{ inputs.is-snapshot }}"
-          echo "TAG: ${{ inputs.tag }}"
-          echo "VERSION: $VERSION"
+          ./gradlew clean shadowJar --info --stacktrace
       -
         name: Publish Modrinth
-        if: ${{ !inputs.is-snapshot && inputs.tag && env.VERSION != '' }}
+        if: ${{ !inputs.is-snapshot }}
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          VERSION: ${{ env.VERSION }}
         run: |
-          echo "Publishing to Modrinth with version: $VERSION"
-          ./gradlew modrinth modrinthSyncBody -Pversion=$VERSION --info --stacktrace
+          ./gradlew modrinth modrinthSyncBody --info --stacktrace
       -
-        name: Prepare release assets
+        name: Upload to Release
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Release ${{ inputs.tag }}
+          body: ${{ inputs.change-log }}
+          files: build/libs/I18nUpdateMod-*.jar
+          token: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Rename and Re-upload to Release
         if: ${{ !inputs.is-snapshot && inputs.tag }}
         run: |
           # 找到构建的JAR文件
@@ -94,29 +66,7 @@ jobs:
           # 重命名文件
           NEW_NAME="I18nUpdateMod3-${{ inputs.tag }}.jar"
           cp "$JAR_FILE" "$NEW_NAME"
-          echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_ENV
-      -
-        name: Create Release
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
-        id: create_release
-        uses: actions/create-release@v1
+          # 上传重命名后的文件到Release
+          gh release upload "${{ inputs.tag }}" "$NEW_NAME" --repo $GITHUB_REPOSITORY
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ inputs.tag }}
-          release_name: Release ${{ inputs.tag }}
-          body: ${{ inputs.change-log }}
-          draft: false
-          prerelease: false
-      -
-        name: Upload Release Asset
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.ASSET_PATH }}
-          asset_name: ${{ env.ASSET_PATH }}
-          asset_content_type: application/java-archive
