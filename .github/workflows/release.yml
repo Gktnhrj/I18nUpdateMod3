@@ -66,3 +66,11 @@ jobs:
           asset_path: ./I18nUpdateMod-${{ env.VERSION }}.jar
           asset_name: I18nUpdateMod-${{ env.VERSION }}.jar
           asset_content_type: application/java-archive
+      
+      - name: Call Common Workflow
+        uses: ./.github/workflows/common.yml
+        with:
+             type: 'release'
+             is-snapshot: false
+             change-log: ${{ steps.generate_changelog.outputs.changelog }}
+             tag: ${{ github.ref_name }}  # 例如 'v1.2.3'
