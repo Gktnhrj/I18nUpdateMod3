@@ -16,9 +16,9 @@ import java.util.stream.Collectors;
 
 public class I18nConfig {
     /**
-     * <a href="https://github.com/CFPAOrg/Minecraft-Mod-Language-Package">CFPAOrg/Minecraft-Mod-Language-Package</a>
+     * <a href="https://github.com/zkitefly/TranslationPackMirror">zkitefly/TranslationPackMirror</a>
      */
-    private static final String CFPA_ASSET_ROOT = "https://cfpa.cyan.cafe/project-hex/";
+    private static final String CFPA_ASSET_ROOT = "https://zkitefly.github.io/TranslationPackMirror/files/";
     private static final Gson GSON = new Gson();
     private static I18nMetaData i18nMetaData;
 
