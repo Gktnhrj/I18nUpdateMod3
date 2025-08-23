@@ -171,27 +171,52 @@ jobs:
           draft: false
           prerelease: false
       -
-        name: Get release upload URL
+        name: Debug - Check asset and upload URL
         if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         run: |
-          # 如果release是新创建的，使用创建步骤的输出
-          if [ "${{ steps.check_release.outputs.release_exists }}" = "false" ]; then
-            echo "UPLOAD_URL=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_ENV
-          else
-            # 如果release已存在，获取其上传URL
-            response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/v${{ env.VERSION }}")
-            upload_url=$(echo "$response" | grep '"upload_url":' | sed 's/.*"upload_url": "\([^"]*\){.*/\1/')
-            echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
-          fi
+          echo "Asset path: ${{ env.ASSET_PATH }}"
+          echo "Asset exists: $(if [ -f "${{ env.ASSET_PATH }}" ]; then echo "yes"; else echo "no"; fi)"
+          ls -la "${{ env.ASSET_PATH }}" || echo "Cannot list asset"
       -
-        name: Upload Release Asset
+        name: Upload Release Asset (using API)
         if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
-        uses: actions/upload-release-asset@v1
+        run: |
+          # 确保文件存在
+          if [ ! -f "${{ env.ASSET_PATH }}" ]; then
+            echo "Error: Asset file not found: ${{ env.ASSET_PATH }}"
+            exit 1
+          fi
+          
+          # 获取release ID
+          if [ "${{ steps.check_release.outputs.release_exists }}" = "true" ]; then
+            RELEASE_ID="${{ steps.check_release.outputs.release_id }}"
+          else
+            # 从创建步骤获取release ID
+            RELEASE_ID="${{ steps.create_release.outputs.id }}"
+          fi
+          
+          echo "Using release ID: $RELEASE_ID"
+          
+          # 上传资源
+          ASSET_NAME="I18nUpdateMod3-${{ env.VERSION }}.jar"
+          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$ASSET_NAME"
+          
+          echo "Uploading $ASSET_NAME to $UPLOAD_URL"
+          
+          # 使用curl上传
+          response=$(curl -s \
+            -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/java-archive" \
+            --data-binary @"${{ env.ASSET_PATH }}" \
+            "$UPLOAD_URL")
+          
+          # 检查上传是否成功
+          if echo "$response" | grep -q '"message":'; then
+            echo "Upload failed: $response"
+            exit 1
+          else
+            echo "Upload successful"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ${{ env.ASSET_PATH }}
-          asset_name: ${{ env.ASSET_PATH }}
-          asset_content_type: application/java-archive
