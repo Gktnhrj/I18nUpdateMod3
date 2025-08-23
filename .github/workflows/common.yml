@@ -15,6 +15,7 @@ on:
       tag:
         required: false
         type: string
+        default: ""
 
 jobs:
   build-common:
@@ -35,26 +36,51 @@ jobs:
           java-version: '21'
           cache: 'gradle'
       -
-        name: Extract version from tag
-        if: ${{ inputs.tag }}
+        name: Try to extract version from various sources
         run: |
-          # 从tag中提取版本号（移除'v'前缀）
-          VERSION="${{ inputs.tag }}"
-          # 如果tag以'v'开头，移除它
-          if [[ "$VERSION" == v* ]]; then
-            VERSION="${VERSION:1}"
+          # 尝试从输入参数获取版本
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+            echo "Using tag from input: $TAG"
+          # 尝试从 GitHub ref 获取版本
+          elif [ -n "${{ github.ref }}" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "Using tag from github.ref: $TAG"
+          # 尝试从环境变量获取版本
+          elif [ -n "${{ env.VERSION }}" ]; then
+            TAG="${{ env.VERSION }}"
+            echo "Using tag from env.VERSION: $TAG"
+          else
+            echo "No tag found from any source"
+            exit 0
           fi
+          
+          # 处理版本格式（移除可能的 'v' 前缀）
+          if [[ "$TAG" == v* ]]; then
+            VERSION="${TAG:1}"
+          else
+            VERSION="$TAG"
+          fi
+          
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
+          echo "Final version: $VERSION"
+      -
+        name: Debug - Check all variables
+        run: |
+          echo "Input is-snapshot: ${{ inputs.is-snapshot }}"
+          echo "Input tag: '${{ inputs.tag }}'"
+          echo "GitHub ref: '${{ github.ref }}'"
+          echo "GitHub ref_name: '${{ github.ref_name }}'"
+          echo "Environment VERSION: '${{ env.VERSION }}'"
       -
         name: Build with version
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
-          # 如果有从tag提取的版本号，则使用它
-          if [ -n "$VERSION" ]; then
-            echo "Building with version: $VERSION"
-            ./gradlew clean shadowJar -Pversion=$VERSION --info --stacktrace
+          # 如果有版本号，则使用它
+          if [ -n "${{ env.VERSION }}" ]; then
+            echo "Building with version: ${{ env.VERSION }}"
+            ./gradlew clean shadowJar -Pversion=${{ env.VERSION }} --info --stacktrace
           else
             echo "Building with default version"
             ./gradlew clean shadowJar --info --stacktrace
@@ -69,48 +95,41 @@ jobs:
             !build/libs/*-sources.jar
             !build/libs/*-javadoc.jar
       -
-        name: Debug - Check variables
-        run: |
-          echo "IS_SNAPSHOT: ${{ inputs.is-snapshot }}"
-          echo "TAG: ${{ inputs.tag }}"
-          echo "VERSION: $VERSION"
-      -
         name: Publish Modrinth
-        if: ${{ !inputs.is-snapshot && inputs.tag && env.VERSION != '' }}
+        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          VERSION: ${{ env.VERSION }}
         run: |
-          echo "Publishing to Modrinth with version: $VERSION"
-          ./gradlew modrinth modrinthSyncBody -Pversion=$VERSION --info --stacktrace
+          echo "Publishing to Modrinth with version: ${{ env.VERSION }}"
+          ./gradlew modrinth modrinthSyncBody -Pversion=${{ env.VERSION }} --info --stacktrace
       -
         name: Prepare release assets
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         run: |
           # 找到构建的JAR文件
           JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar)
           # 重命名文件
-          NEW_NAME="I18nUpdateMod3-${{ inputs.tag }}.jar"
+          NEW_NAME="I18nUpdateMod3-${{ env.VERSION }}.jar"
           cp "$JAR_FILE" "$NEW_NAME"
           echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_ENV
       -
         name: Create Release
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ inputs.tag }}
-          release_name: Release ${{ inputs.tag }}
+          tag_name: v${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
           body: ${{ inputs.change-log }}
           draft: false
           prerelease: false
       -
         name: Upload Release Asset
-        if: ${{ !inputs.is-snapshot && inputs.tag }}
+        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
