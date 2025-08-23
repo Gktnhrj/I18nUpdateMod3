@@ -1,16 +1,18 @@
-# 自动汉化更新模组Ⅲ
+# 自动汉化更新模组Ⅲ修改版
 
-[![Version](https://img.shields.io/github/v/release/CFPAOrg/I18nUpdateMod3?label=&logo=V&labelColor=E1F5FE&color=5D87BF&style=for-the-badge)](https://github.com/gktnhrj/I18nUpdateMod3/tags)
+[![Version](https://img.shields.io/github/v/release/gktnhrj/I18nUpdateMod3?label=&logo=V&labelColor=E1F5FE&color=5D87BF&style=for-the-badge)](https://github.com/gktnhrj/I18nUpdateMod3/tags)
 [![Modrinth]([https://img.shields.io/modrinth/dt/PWERr14M?label=&logo=Modrinth&labelColor=white&color=00AF5C&style=for-the-badge])](https://modrinth.com/mod/i18nupdatemod3-edit-ver.)
 [![License](https://img.shields.io/github/license/CFPAOrg/I18nUpdateMod3?label=&logo=c&style=for-the-badge&color=A8B9CC&labelColor=455A64)](https://github.com/gktnhtj/I18nUpdateMod3/blob/main/LICENSE)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/CFPAOrg/I18nUpdateMod3/beta.yml?style=for-the-badge&label=&logo=Gradle&labelColor=388E3C)](https://github.com/gktnhrj/I18nUpdateMod3/actions)
-[![Star](https://img.shields.io/github/stars/CFPAOrg/I18nUpdateMod3?label=&logo=GitHub&labelColor=black&color=FAFAFA&style=for-the-badge)](https://github.com/gktnhrj/I18nUpdateMod3/stargazers)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/gktnhrj/I18nUpdateMod3/beta.yml?style=for-the-badge&label=&logo=Gradle&labelColor=388E3C)](https://github.com/gktnhrj/I18nUpdateMod3/actions)
+[![Star](https://img.shields.io/github/stars/gktnhrj/I18nUpdateMod3?label=&logo=GitHub&labelColor=black&color=FAFAFA&style=for-the-badge)](https://github.com/gktnhrj/I18nUpdateMod3/stargazers)
 [![Minecraft](https://cf.way2muchnoise.eu/versions/Minecraft_I18nUpdateMod_all.svg?badge_style=for_the_badge)](https://github.com/gktnhrkj/I18nUpdateMod3)
 
 更现代的自动汉化更新模组。
 
 「[简体中文资源包（Minecraft Mod Language Package）](https://github.com/CFPAOrg/Minecraft-Mod-Language-Package)」是由「[CFPAOrg](http://cfpa.team/)」团队维护的「自动汉化资源包」，可以将一些Mod中的文本翻译为中文。  
 本Mod用于自动下载、更新、应用「简体中文资源包」。
+
+本分叉将下载服务器改为由[zkitefly大佬](https://github.com/zkitefly/)定期[镜像](https://zkitefly.github.io/TranslationPackMirror/files/)的[镜像源](https://zkitefly.github.io/TranslationPackMirror/files/)
 
 ## 下载
 - [Modrinth](https://modrinth.com/mod/i18nupdatemod3-edit-ver./)
