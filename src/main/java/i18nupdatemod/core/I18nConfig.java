@@ -18,7 +18,7 @@ public class I18nConfig {
     /**
      * <a href="https://github.com/zkitefly/TranslationPackMirror">zkitefly/TranslationPackMirror</a>
      */
-    private static final String CFPA_ASSET_ROOT = "https://zkitefly.github.io/TranslationPackMirror/files/";
+    private static final String CFPA_ASSET_ROOT = "https://github.com/zkitefly/TranslationPackMirror/tree/main/files-2444-T/";
     private static final Gson GSON = new Gson();
     private static I18nMetaData i18nMetaData;
 
