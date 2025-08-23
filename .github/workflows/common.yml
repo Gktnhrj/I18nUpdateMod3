@@ -25,6 +25,8 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       -
         name: Set up JDK
         uses: actions/setup-java@v4
@@ -33,20 +35,43 @@ jobs:
           java-version: '21'
           cache: 'gradle'
       -
-        name: Build
+        name: Extract version from tag
+        if: ${{ inputs.tag }}
+        run: |
+          # 从tag中提取版本号（假设tag格式为v1.2.3）
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+      -
+        name: Build with version
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
-          ./gradlew clean shadowJar --info --stacktrace
+          # 如果有从tag提取的版本号，则使用它
+          if [ -n "$VERSION" ]; then
+            ./gradlew clean shadowJar -Pversion=$VERSION --info --stacktrace
+          else
+            ./gradlew clean shadowJar --info --stacktrace
+          fi
+      -
+        name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+            !build/libs/*-javadoc.jar
       -
         name: Publish Modrinth
-        if: ${{ !inputs.is-snapshot }}
+        if: ${{ !inputs.is-snapshot && inputs.tag }}
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          ./gradlew modrinth modrinthSyncBody --info --stacktrace
+          # 使用从tag提取的版本号发布到Modrinth
+          ./gradlew modrinth modrinthSyncBody -Pversion=$VERSION --info --stacktrace
       -
         name: Prepare release assets
         if: ${{ !inputs.is-snapshot && inputs.tag }}
