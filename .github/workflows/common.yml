@@ -86,6 +86,13 @@ jobs:
             ./gradlew clean shadowJar --info --stacktrace
           fi
       -
+        name: List build outputs
+        run: |
+          echo "Contents of build/libs/:"
+          ls -la build/libs/
+          echo "JAR files:"
+          ls -la build/libs/*.jar || echo "No JAR files found"
+      -
         name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -108,8 +115,25 @@ jobs:
         name: Prepare release assets
         if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
         run: |
-          # 找到构建的JAR文件
-          JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar)
+          # 优先选择-all.jar文件
+          if [ -f "build/libs/I18nUpdateMod-${{ env.VERSION }}-all.jar" ]; then
+            JAR_FILE="build/libs/I18nUpdateMod-${{ env.VERSION }}-all.jar"
+          elif [ -f "build/libs/I18nUpdateMod-${{ env.VERSION }}.jar" ]; then
+            JAR_FILE="build/libs/I18nUpdateMod-${{ env.VERSION }}.jar"
+          else
+            # 如果没有找到特定版本的文件，取第一个找到的JAR文件
+            JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar 2>/dev/null | head -n 1)
+          fi
+          
+          # 检查是否找到了JAR文件
+          if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
+            echo "Error: No JAR file found in build/libs/"
+            ls -la build/libs/
+            exit 1
+          fi
+          
+          echo "Using JAR file: $JAR_FILE"
+          
           # 重命名文件
           NEW_NAME="I18nUpdateMod3-${{ env.VERSION }}.jar"
           cp "$JAR_FILE" "$NEW_NAME"
