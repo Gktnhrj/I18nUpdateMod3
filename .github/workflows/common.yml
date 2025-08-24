@@ -12,10 +12,6 @@ on:
       change-log:
         required: false
         type: string
-      tag:
-        required: false
-        type: string
-        default: ""
 
 jobs:
   build-common:
@@ -26,8 +22,6 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       -
         name: Set up JDK
         uses: actions/setup-java@v4
@@ -36,187 +30,17 @@ jobs:
           java-version: '21'
           cache: 'gradle'
       -
-        name: Try to extract version from various sources
-        run: |
-          # 尝试从输入参数获取版本
-          if [ -n "${{ inputs.tag }}" ]; then
-            TAG="${{ inputs.tag }}"
-            echo "Using tag from input: $TAG"
-          # 尝试从 GitHub ref 获取版本
-          elif [ -n "${{ github.ref }}" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "Using tag from github.ref: $TAG"
-          # 尝试从环境变量获取版本
-          elif [ -n "${{ env.VERSION }}" ]; then
-            TAG="${{ env.VERSION }}"
-            echo "Using tag from env.VERSION: $TAG"
-          else
-            echo "No tag found from any source"
-            exit 0
-          fi
-          
-          # 处理版本格式（移除可能的 'v' 前缀）
-          if [[ "$TAG" == v* ]]; then
-            VERSION="${TAG:1}"
-          else
-            VERSION="$TAG"
-          fi
-          
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Final version: $VERSION"
-      -
-        name: Debug - Check all variables
-        run: |
-          echo "Input is-snapshot: ${{ inputs.is-snapshot }}"
-          echo "Input tag: '${{ inputs.tag }}'"
-          echo "GitHub ref: '${{ github.ref }}'"
-          echo "GitHub ref_name: '${{ github.ref_name }}'"
-          echo "Environment VERSION: '${{ env.VERSION }}'"
-      -
-        name: Build with version
+        name: Build
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
-          # 如果有版本号，则使用它
-          if [ -n "${{ env.VERSION }}" ]; then
-            echo "Building with version: ${{ env.VERSION }}"
-            ./gradlew clean shadowJar -Pversion=${{ env.VERSION }} --info --stacktrace
-          else
-            echo "Building with default version"
-            ./gradlew clean shadowJar --info --stacktrace
-          fi
-      -
-        name: List build outputs
-        run: |
-          echo "Contents of build/libs/:"
-          ls -la build/libs/
-          echo "JAR files:"
-          ls -la build/libs/*.jar || echo "No JAR files found"
-      -
-        name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            build/libs/*.jar
-            !build/libs/*-sources.jar
-            !build/libs/*-javadoc.jar
+          ./gradlew clean shadowJar --info --stacktrace
       -
         name: Publish Modrinth
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
+        if: ${{ !inputs.is-snapshot }}
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
           CHANGE_LOG: ${{ inputs.change-log }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          echo "Publishing to Modrinth with version: ${{ env.VERSION }}"
-          ./gradlew modrinth modrinthSyncBody -Pversion=${{ env.VERSION }} --info --stacktrace
-      -
-        name: Prepare release assets
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
-        run: |
-          # 优先选择-all.jar文件
-          if [ -f "build/libs/I18nUpdateMod-${{ env.VERSION }}-all.jar" ]; then
-            JAR_FILE="build/libs/I18nUpdateMod-${{ env.VERSION }}-all.jar"
-          elif [ -f "build/libs/I18nUpdateMod-${{ env.VERSION }}.jar" ]; then
-            JAR_FILE="build/libs/I18nUpdateMod-${{ env.VERSION }}.jar"
-          else
-            # 如果没有找到特定版本的文件，取第一个找到的JAR文件
-            JAR_FILE=$(ls build/libs/I18nUpdateMod-*.jar 2>/dev/null | head -n 1)
-          fi
-          
-          # 检查是否找到了JAR文件
-          if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
-            echo "Error: No JAR file found in build/libs/"
-            ls -la build/libs/
-            exit 1
-          fi
-          
-          echo "Using JAR file: $JAR_FILE"
-          
-          # 重命名文件
-          NEW_NAME="I18nUpdateMod3-${{ env.VERSION }}.jar"
-          cp "$JAR_FILE" "$NEW_NAME"
-          echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_ENV
-      -
-        name: Check if release exists
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
-        id: check_release
-        run: |
-          # 检查是否已存在指定tag的release
-          response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/v${{ env.VERSION }}")
-          
-          if echo "$response" | grep -q '"message":"Not Found"'; then
-            echo "Release does not exist"
-            echo "release_exists=false" >> $GITHUB_OUTPUT
-          else
-            echo "Release already exists"
-            echo "release_exists=true" >> $GITHUB_OUTPUT
-            # 提取release ID
-            release_id=$(echo "$response" | grep '"id":' | head -1 | awk -F: '{ print $2 }' | sed 's/[^0-9]*//g')
-            echo "release_id=$release_id" >> $GITHUB_OUTPUT
-          fi
-      -
-        name: Create Release (if not exists)
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' && steps.check_release.outputs.release_exists == 'false' }}
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          body: ${{ inputs.change-log }}
-          draft: false
-          prerelease: false
-      -
-        name: Debug - Check asset and upload URL
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
-        run: |
-          echo "Asset path: ${{ env.ASSET_PATH }}"
-          echo "Asset exists: $(if [ -f "${{ env.ASSET_PATH }}" ]; then echo "yes"; else echo "no"; fi)"
-          ls -la "${{ env.ASSET_PATH }}" || echo "Cannot list asset"
-      -
-        name: Upload Release Asset (using API)
-        if: ${{ !inputs.is-snapshot && env.VERSION != '' }}
-        run: |
-          # 确保文件存在
-          if [ ! -f "${{ env.ASSET_PATH }}" ]; then
-            echo "Error: Asset file not found: ${{ env.ASSET_PATH }}"
-            exit 1
-          fi
-          
-          # 获取release ID
-          if [ "${{ steps.check_release.outputs.release_exists }}" = "true" ]; then
-            RELEASE_ID="${{ steps.check_release.outputs.release_id }}"
-          else
-            # 从创建步骤获取release ID
-            RELEASE_ID="${{ steps.create_release.outputs.id }}"
-          fi
-          
-          echo "Using release ID: $RELEASE_ID"
-          
-          # 上传资源
-          ASSET_NAME="I18nUpdateMod3-${{ env.VERSION }}.jar"
-          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$ASSET_NAME"
-          
-          echo "Uploading $ASSET_NAME to $UPLOAD_URL"
-          
-          # 使用curl上传
-          response=$(curl -s \
-            -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/java-archive" \
-            --data-binary @"${{ env.ASSET_PATH }}" \
-            "$UPLOAD_URL")
-          
-          # 检查上传是否成功
-          if echo "$response" | grep -q '"message":'; then
-            echo "Upload failed: $response"
-            exit 1
-          else
-            echo "Upload successful"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ./gradlew modrinth modrinthSyncBody --info --stacktrace
